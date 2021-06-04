@@ -25,11 +25,11 @@ func NewClient(baseClient *http.Client, c *Config) (rapid *Client, err error) {
 	// services for resources
 	rapid.Transaction = (*TransactionService)(&rapid.common)
 	rapid.Encryption = (*EncryptionService)(&rapid.common)
-	//rapid.File = (*FileService)(&rapid.common)
 	// services end
 
 	rapid.apiKey = c.apiKey
 	rapid.apiPassword = c.apiPassword
+	rapid.payNowButtonApiKey = c.payNowButtonApiKey
 	rapid.userAgent = strings.Join([]string{
 		runtime.GOOS,
 		runtime.GOARCH,

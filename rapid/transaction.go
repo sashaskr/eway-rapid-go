@@ -20,7 +20,6 @@ type Transaction struct {
 	SaveCustomer    bool            `json:"SaveCustomer,omitempty"`
 	Payment         Payment         `json:"Payment,omitempty"`
 	Customer        Customer        `json:"Customer,omitempty"`
-	CardDetails     CardDetails     `json:"CardDetails,omitempty"`
 	ShippingAddress ShippingAddress `json:"ShippingAddress,omitempty"`
 }
 
@@ -33,16 +32,17 @@ type Payment struct {
 }
 
 type Customer struct {
-	TokenCustomerID string `json:"token_customer_id"`
-	Reference       string `json:"reference"`
-	Title           string `json:"title"`
-	FirstName       string `json:"first_name"`
-	LastName        string `json:"last_name"`
-	CompanyName     string `json:"company_name"`
-	JobDescription  string `json:"job_description"`
+	TokenCustomerID string `json:"TokenCustomerID"`
+	Reference       string `json:"Reference,omitempty"`
+	Title           string `json:"Title"`
+	FirstName       string `json:"FirstName"`
+	LastName        string `json:"LastName"`
+	CompanyName     string `json:"CompanyName,omitempty"`
+	JobDescription  string `json:"JobDescription,omitempty"`
 	Address
-	Mobile string `json:"Mobile,omitempty"`
-	Url    string `json:"Url,omitempty"`
+	Mobile      string      `json:"Mobile,omitempty"`
+	Url         string      `json:"Url,omitempty"`
+	CardDetails CardDetails `json:"CardDetails,omitempty"`
 }
 
 type Address struct {
@@ -58,16 +58,19 @@ type Address struct {
 }
 
 type ShippingAddress struct {
-	ShippingMethod string `json:"ShippingMethod"`
+	ShippingMethod string `json:"ShippingMethod,omitempty"`
 	Address
 }
 
 type CardDetails struct {
 	Name        string `json:"Name"`
-	Number      int    `json:"Number"`
+	Number      string `json:"Number"`
 	ExpiryMonth int8   `json:"ExpiryMonth"`
 	ExpiryYear  int8   `json:"ExpiryYear"`
-	CVN         int8   `json:"CVN"`
+	StartMonth  int8   `json:"StartMonth,omitempty"`
+	StartYear   int8   `json:"StartYear,omitempty"`
+	IssueNumber int8   `json:"IssueNumber,omitempty"`
+	CVN         string `json:"CVN"`
 }
 
 type ResponseTransaction struct {
@@ -75,6 +78,19 @@ type ResponseTransaction struct {
 	FormActionURL       string  `json:"FormActionURL"`
 	CompleteCheckoutURL string  `json:"CompleteCheckoutURL"`
 	Payment             Payment `json:"Payment"`
+}
+
+type ResponseDirectConnection struct {
+	AuthorisationCode string  `json:"AuthorisationCode"`
+	ResponseCode      string  `json:"ResponseCode"`
+	ResponseMessage   string  `json:"ResponseMessage"`
+	TransactionID     int32   `json:"TransactionID"`
+	TransactionStatus bool    `json:"TransactionStatus"`
+	TransactionType   string  `json:"TransactionType"`
+	TotalAmount       int     `json:"TotalAmount"`
+	BeagleScore       string  `json:"BeagleScore"`
+	Errors            string  `json:"Errors"`
+	Payment           Payment `json:"Payment"`
 }
 
 type Context struct{}
@@ -86,6 +102,9 @@ func (ts *TransactionService) AccessCodes(t *Transaction) (rt *ResponseTransacti
 	}
 
 	res, err := ts.client.Do(req)
+	if err != nil {
+		panic(err)
+	}
 	if err = json.Unmarshal(res.content, &rt); err != nil {
 		return
 	}
@@ -93,13 +112,18 @@ func (ts *TransactionService) AccessCodes(t *Transaction) (rt *ResponseTransacti
 	return
 }
 
-func (ts *TransactionService) DirectConnection(t *Transaction) (rt *ResponseTransaction, err error) {
+func (ts *TransactionService) DirectConnection(t *Transaction, encryptionService *EncryptionService) (rt *ResponseTransaction, err error) {
+	encryptionService.EncryptCardDetails(t)
 	req, err := ts.client.NewAPIRequest(http.MethodPost, "Transaction", t)
+
 	if err != nil {
 		return
 	}
 
 	res, err := ts.client.Do(req)
+	if err != nil {
+		panic(err)
+	}
 	if err = json.Unmarshal(res.content, &rt); err != nil {
 		return
 	}

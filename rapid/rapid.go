@@ -14,15 +14,12 @@ import (
 const (
 	BaseURL            string = "https://api.sandbox.ewaypayments.com/"
 	AuthHeader         string = "Authorization"
-	ApplicationHeader  string = "Application"
-	DigestHeader       string = "Digest"
 	RequestContentType string = "application/json"
 	RequestAccept      string = "application/json"
 	TokenType          string = "Basic"
 	Connection         string = "keep-alive"
 	APIKeyEnv          string = "EWAY_API_KEY"
 	APIPasswordEnv     string = "EWAY_API_PASSWORD"
-	ContentTypeHeader  string = "Content-Type"
 	XEwayAPIVersion    string = "X-EWAY-APIVERSION"
 )
 
@@ -32,18 +29,16 @@ type Response struct {
 }
 
 type Client struct {
-	BaseURL     *url.URL
-	apiKey      string
-	apiPassword string
-	userAgent   string
-	client      *http.Client
-	config      *Config
-	common      service
-	Transaction *TransactionService
-	Encryption  *EncryptionService
-
-	//Transaction    *TransactionService
-	//File           *FileService
+	BaseURL            *url.URL
+	apiKey             string
+	apiPassword        string
+	payNowButtonApiKey string
+	userAgent          string
+	client             *http.Client
+	config             *Config
+	common             service
+	Transaction        *TransactionService
+	Encryption         *EncryptionService
 }
 
 type service struct {
@@ -95,6 +90,47 @@ func (c *Client) NewAPIRequest(method string, uri string, body interface{}) (req
 	}
 
 	var token = base64.StdEncoding.EncodeToString([]byte(strings.Join([]string{c.apiKey, c.apiPassword}, ":")))
+
+	req.Header.Add(AuthHeader, strings.Join([]string{TokenType, token}, " "))
+	req.Header.Add(XEwayAPIVersion, "40") // TODO: Move it to the config
+	req.Header.Set("Content-Type", RequestContentType)
+	req.Header.Set("Accept", RequestAccept)
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Connection", Connection)
+	return
+}
+
+func (c *Client) NewApiEncryptedRequest(method string, uri string, body interface{}) (req *http.Request, err error) {
+	if !strings.HasSuffix(c.BaseURL.Path, "/") {
+		return nil, errBadBaseURL
+	}
+
+	u, err := c.BaseURL.Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.config.testing {
+		u.Query().Add("testmode", "true")
+	}
+
+	var buf io.ReadWriter
+	if body != nil {
+		buf = new(bytes.Buffer)
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
+		err := enc.Encode(body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req, err = http.NewRequest(method, u.String(), buf)
+	if err != nil {
+		return nil, err
+	}
+
+	var token = base64.StdEncoding.EncodeToString([]byte(strings.Join([]string{c.payNowButtonApiKey, ""}, ":")))
 
 	req.Header.Add(AuthHeader, strings.Join([]string{TokenType, token}, " "))
 	req.Header.Add(XEwayAPIVersion, "40")
