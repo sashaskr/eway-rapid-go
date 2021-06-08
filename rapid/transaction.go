@@ -9,8 +9,12 @@ import (
 
 type TransactionService service
 
-type Transactions struct {
+type TransactionsResponseDirectConnection struct {
 	Transactions []ResponseDirectConnection
+}
+
+type Transactions struct {
+	Transactions []Transaction
 }
 
 type Transaction struct {
@@ -18,7 +22,7 @@ type Transaction struct {
 	RedirectUrl     string          `json:"RedirectUrl,omitempty"`
 	CustomerIP      string          `json:"CustomerIP,omitempty"`
 	Method          string          `json:"Method"`
-	TransactionType string          `json:"TransactionType"`
+	TransactionType string          `json:"TransactionType,omitempty"`
 	DeviceID        string          `json:"DeviceID,omitempty"`
 	PartnerID       string          `json:"PartnerID,omitempty"`
 	CheckoutPayment bool            `json:"CheckoutPayment,omitempty"`
@@ -36,20 +40,6 @@ type Payment struct {
 	InvoiceDescription string `json:"InvoiceDescription,omitempty"`
 	InvoiceReference   string `json:"InvoiceReference,omitempty"`
 	CurrencyCode       string `json:"CurrencyCode,omitempty"`
-}
-
-type Customer struct {
-	TokenCustomerID string `json:"TokenCustomerID"`
-	Reference       string `json:"Reference,omitempty"`
-	Title           string `json:"Title"`
-	FirstName       string `json:"FirstName"`
-	LastName        string `json:"LastName"`
-	CompanyName     string `json:"CompanyName,omitempty"`
-	JobDescription  string `json:"JobDescription,omitempty"`
-	Address
-	Mobile      string      `json:"Mobile,omitempty"`
-	Url         string      `json:"Url,omitempty"`
-	CardDetails CardDetails `json:"CardDetails,omitempty"`
 }
 
 type Address struct {
@@ -77,7 +67,7 @@ type CardDetails struct {
 	StartMonth  string `json:"StartMonth,omitempty"`
 	StartYear   string `json:"StartYear,omitempty"`
 	IssueNumber int8   `json:"IssueNumber,omitempty"`
-	CVN         int    `json:"CVN"`
+	CVN         string `json:"CVN"`
 }
 
 type ResponseTransaction struct {
@@ -138,7 +128,7 @@ type Refund struct {
 type Context struct{}
 
 func (ts *TransactionService) AccessCodes(t *Transaction) (rt *ResponseTransaction, err error) {
-	req, err := ts.client.NewAPIRequest(http.MethodPost, "AccessCodes", t)
+	req, err := ts.client.NewAPIRequest(http.MethodPost, "Transaction", t)
 	if err != nil {
 		return
 	}
@@ -173,7 +163,7 @@ func (ts *TransactionService) DirectConnection(t *Transaction, encryptionService
 	return
 }
 
-func (ts *TransactionService) GetTransaction(identifier string, method string) (tr *Transactions, err error) {
+func (ts *TransactionService) GetTransaction(identifier string, method string) (tr *TransactionsResponseDirectConnection, err error) {
 	u := fmt.Sprintf("%s/%s", method, identifier)
 	req, err := ts.client.NewAPIRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -191,23 +181,25 @@ func (ts *TransactionService) GetTransaction(identifier string, method string) (
 	return
 }
 
-func (ts *TransactionService) GetTransactionByTransactionID(transactionID string) (tr *Transactions, err error) {
-	code, err := ts.GetTransaction(transactionID, "Transaction")
+func (ts *TransactionService) GetTransactionByTransactionID(transactionID string) (tr *TransactionsResponseDirectConnection, err error) {
+	u := fmt.Sprintf("Transaction/%s", transactionID)
+	req, err := ts.client.NewAPIRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return code, nil
+
+	res, err := ts.client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	if err = json.Unmarshal(res.content, &tr); err != nil {
+		panic(err)
+	}
+
+	return
 }
 
-func (ts *TransactionService) GetTransactionByAccessCode(accessCode string) (tr *Transactions, err error) {
-	transaction, err := ts.GetTransactionByTransactionID(accessCode)
-	if err != nil {
-		return nil, err
-	}
-	return transaction, nil
-}
-
-func (ts *TransactionService) GetTransactionByInvoiceNumber(invoiceNumber string) (tr *Transactions, err error) {
+func (ts *TransactionService) GetTransactionsByInvoiceNumber(invoiceNumber string) (tr *TransactionsResponseDirectConnection, err error) {
 	code, err := ts.GetTransaction(invoiceNumber, "Transaction/InvoiceNumber")
 	if err != nil {
 		return nil, err
@@ -215,7 +207,7 @@ func (ts *TransactionService) GetTransactionByInvoiceNumber(invoiceNumber string
 	return code, nil
 }
 
-func (ts *TransactionService) GetTransactionByInvoiceReference(invoiceReference string) (tr *Transactions, err error) {
+func (ts *TransactionService) GetTransactionsByInvoiceReference(invoiceReference string) (tr *TransactionsResponseDirectConnection, err error) {
 	code, err := ts.GetTransaction(invoiceReference, "Transaction/InvoiceRef")
 	if err != nil {
 		return nil, err
@@ -223,8 +215,8 @@ func (ts *TransactionService) GetTransactionByInvoiceReference(invoiceReference 
 	return code, nil
 }
 
-func (ts *TransactionService) Refund(t *Transaction, r *Refund) (rt *ResponseTransaction, err error) {
-	u := fmt.Sprintf("Transaction/%s/Refund", t.TransactionID)
+func (ts *TransactionService) Refund(transactionID string, r *Refund) (rt *ResponseTransaction, err error) {
+	u := fmt.Sprintf("Transaction/%s/Refund", transactionID)
 	req, err := ts.client.NewAPIRequest(http.MethodPost, u, r)
 	if err != nil {
 		panic(err)

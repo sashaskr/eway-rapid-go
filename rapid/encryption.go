@@ -3,7 +3,6 @@ package rapid
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 )
 
 type EncryptionService service
@@ -46,7 +45,7 @@ func (es *EncryptionService) EncryptCardDetails(t *Transaction) {
 		Items: []Item{
 			{
 				Name:  "CVN",
-				Value: strconv.Itoa(t.Customer.CardDetails.CVN),
+				Value: t.Customer.CardDetails.CVN,
 			},
 			{
 				Name:  "card",
@@ -60,11 +59,7 @@ func (es *EncryptionService) EncryptCardDetails(t *Transaction) {
 	}
 	for _, item := range items.Items {
 		if item.Name == "CVN" {
-			v, err := strconv.Atoi(item.Value)
-			if err != nil {
-				panic(err)
-			}
-			t.Customer.CardDetails.CVN = v
+			t.Customer.CardDetails.CVN = item.Value
 		}
 		if item.Name == "card" {
 			t.Customer.CardDetails.Number = item.Value

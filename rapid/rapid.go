@@ -39,6 +39,7 @@ type Client struct {
 	common             service
 	Transaction        *TransactionService
 	Encryption         *EncryptionService
+	Customer           *CustomerService
 }
 
 type service struct {

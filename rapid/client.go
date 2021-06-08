@@ -25,6 +25,7 @@ func NewClient(baseClient *http.Client, c *Config) (rapid *Client, err error) {
 	// services for resources
 	rapid.Transaction = (*TransactionService)(&rapid.common)
 	rapid.Encryption = (*EncryptionService)(&rapid.common)
+	rapid.Customer = (*CustomerService)(&rapid.common)
 	// services end
 
 	rapid.apiKey = c.apiKey
