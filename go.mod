@@ -1,4 +1,4 @@
-module eway-rapid-go
+module github.com/sashaskr/eway-rapid-go
 
 go 1.16
 
